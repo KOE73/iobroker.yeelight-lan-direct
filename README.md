@@ -42,7 +42,10 @@ or from the command line:
 
 ```bash
 iobroker url https://github.com/KOE73/iobroker.yeelight-lan-direct.git
+iobroker add yeelight-lan-direct
 ```
+
+> Note: a GitHub install only installs the package — it does not create an instance (that's how `iobroker url` works for any adapter). Either run `iobroker add` as shown above, or press **“+”** on the adapter card in Admin afterwards — that also opens the settings dialog automatically.
 
 ## Quick start
 

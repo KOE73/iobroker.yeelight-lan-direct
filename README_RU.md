@@ -42,7 +42,10 @@ https://github.com/KOE73/iobroker.yeelight-lan-direct
 
 ```bash
 iobroker url https://github.com/KOE73/iobroker.yeelight-lan-direct.git
+iobroker add yeelight-lan-direct
 ```
+
+> Важно: установка с GitHub только ставит пакет — инстанс она не создаёт (так работает `iobroker url` для любого адаптера). Либо выполните `iobroker add`, как выше, либо после установки нажмите **«+»** на карточке адаптера в Admin — тогда и окно настроек откроется автоматически.
 
 ## Быстрый старт
 
