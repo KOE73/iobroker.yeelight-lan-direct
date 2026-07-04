@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Yeelight Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #07090f;
+  --card:       rgba(255,255,255,0.04);
+  --card-hover: rgba(255,255,255,0.07);
+  --border:     rgba(255,255,255,0.08);
+  --border-hi:  rgba(0,212,255,0.35);
+  --accent:     #00d4ff;
+  --accent-dim: rgba(0,212,255,0.15);
+  --amber:      #ffaa00;
+  --amber-dim:  rgba(255,170,0,0.15);
+  --text:       #d8e8f0;
+  --muted:      rgba(255,255,255,0.35);
+  --danger:     #ff4d4d;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 60% 50% at 10% 40%, rgba(0,100,200,0.12) 0%, transparent 100%),
+    radial-gradient(ellipse 50% 60% at 90% 70%, rgba(0,180,150,0.08) 0%, transparent 100%);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+header h1 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.header-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+#devices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+/* ─── Card ─── */
+.card {
+  width: 360px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.5rem;
+  backdrop-filter: blur(24px);
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+.card.connected {
+  border-color: var(--border-hi);
+  box-shadow: 0 0 40px rgba(0,212,255,0.06);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.card-name {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.status-dot {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.7rem; color: var(--muted); letter-spacing: 0.05em;
+}
+.status-dot::before {
+  content: '';
+  display: block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  transition: background 0.4s, box-shadow 0.4s;
+}
+.status-dot.on::before {
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+}
+.status-dot.on { color: #00ff88; }
+
+/* ─── States grid ─── */
+.section-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  margin: 1rem 0 0.5rem;
+}
+.states-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+.state-item {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 0.45rem 0.65rem;
+  transition: background 0.2s;
+}
+.state-key { font-size: 0.64rem; color: var(--muted); letter-spacing: 0.05em; }
+.state-val { font-size: 0.82rem; font-weight: 500; margin-top: 3px; }
+.state-val.is-true  { color: #00ff88; }
+.state-val.is-false { color: rgba(255,255,255,0.2); }
+.state-val.is-num   { color: var(--accent); }
+
+/* ─── Sliders ─── */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.45rem 0;
+}
+.slider-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  width: 64px;
+  flex-shrink: 0;
+}
+input[type=range] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  transition: transform 0.1s;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb:active { transform: scale(1.3); }
+.ct-track input[type=range] {
+  background: linear-gradient(to right, #ff9132, #fff0d0, #c8e8ff);
+}
+.bg-track input[type=range]::-webkit-slider-thumb { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.slider-val {
+  width: 44px;
+  text-align: right;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.bg-track .slider-val { color: var(--amber); }
+
+/* ─── Color swatch ─── */
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.45rem 0;
+}
+.color-swatch {
+  width: 36px; height: 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  transition: background 0.4s;
+}
+
+/* ─── Divider ─── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 1rem 0;
+}
+
+/* ─── Buttons ─── */
+.btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.5rem 0;
+}
+.btn {
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  padding: 0.4rem 0.75rem;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.btn:hover {
+  background: var(--accent-dim);
+  border-color: rgba(0,212,255,0.5);
+  box-shadow: 0 0 12px rgba(0,212,255,0.15);
+  transform: translateY(-1px);
+}
+.btn:active { transform: scale(0.97); }
+.btn.btn-off {
+  border-color: rgba(255,77,77,0.3);
+  color: var(--danger);
+}
+.btn.btn-off:hover {
+  background: rgba(255,77,77,0.15);
+  border-color: rgba(255,77,77,0.6);
+  box-shadow: 0 0 12px rgba(255,77,77,0.15);
+}
+.btn.btn-bg {
+  border-color: rgba(255,170,0,0.25);
+  color: var(--amber);
+}
+.btn.btn-bg:hover {
+  background: var(--amber-dim);
+  border-color: rgba(255,170,0,0.6);
+  box-shadow: 0 0 12px rgba(255,170,0,0.15);
+}
+
+/* ─── Increment buttons ─── */
+.inc-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.5rem 0;
+}
+.inc-pair {
+  display: flex;
+  gap: 2px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.inc-pair .btn {
+  border-radius: 0;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.64rem;
+  min-width: 52px;
+  text-align: center;
+}
+.inc-pair .btn:first-child { border-radius: 9px 0 0 9px; }
+.inc-pair .btn:last-child  { border-radius: 0 9px 9px 0; }
+.btn.btn-inc {
+  border-color: rgba(168,130,255,0.3);
+  color: #c4a8ff;
+}
+.btn.btn-inc:hover {
+  background: rgba(168,130,255,0.15);
+  border-color: rgba(168,130,255,0.6);
+  box-shadow: 0 0 12px rgba(168,130,255,0.15);
+}
+
+/* ─── Empty state ─── */
+#empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 3rem;
+  text-align: center;
+  width: 100%;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-dot"></div>
+  <h1>Yeelight Panel</h1>
+</header>
+
+<div id="devices"><div id="empty">Ожидание устройств…</div></div>
+
+<script>
+const PREFIX = '0_userdata.0.yeelight.';
+const devCards  = {};
+const devStates = {};
+let   profiles  = {};
+
+// Hidden from state grid
+const HIDE_KEYS = new Set([
+  '_last_props_json','_last_other_json','_last_seen_ts',
+  'ON_CT','ON_NORMAL','ON_RGB','ON_HSV','ON_FLOW','ON_NIGHT','OFF','ON_BG','OFF_BG',
+  'TOGGLE','DEV_TOGGLE','SET_DEFAULT','BG_TOGGLE','BG_SET_DEFAULT',
+  'BRIGHT_UP','BRIGHT_DOWN','CT_UP','CT_DOWN',
+  'HUE_CW','HUE_CCW','SAT_UP','SAT_DOWN',
+  'BG_BRIGHT_UP','BG_BRIGHT_DOWN',
+]);
+
+function parseId(id) {
+  if (!id.startsWith(PREFIX)) return null;
+  const rest = id.slice(PREFIX.length);
+  const dot  = rest.indexOf('.');
+  if (dot < 0) return null;
+  return { dev: rest.slice(0, dot), key: rest.slice(dot + 1) };
+}
+
+function getProfile(dev) {
+  return profiles[dev] || profiles.__default__ || {
+    sliders: [{ id: 'bright', label: 'Яркость', method: 'set_bright', min: 1, max: 100 }],
+    buttons: [{ label: 'OFF', action: 'yeelightOff', cls: 'btn-off' }],
+  };
+}
+
+// ─── Card HTML from profile ───────────────────────────────────────────────────
+function sliderHTML(s, dev) {
+  const mid = Math.round((s.min + s.max) / 2);
+  const sfx = s.suffix || '';
+  return `
+  <div class="slider-row ${s.rowClass || ''}">
+    <span class="slider-label">${s.label}</span>
+    <input type="range" min="${s.min}" max="${s.max}" value="${mid}" id="sl-${s.id}-${dev}"
+      oninput="document.getElementById('sv-${s.id}-${dev}').textContent=this.value+'${sfx}'"
+      onchange="slide('${dev}','${s.method}',+this.value)">
+    <span class="slider-val ${s.rowClass === 'bg-track' ? 'amber' : ''}" id="sv-${s.id}-${dev}">${mid}${sfx}</span>
+  </div>`;
+}
+
+function btnHTML(b, dev) {
+  return `<button class="btn ${b.cls||''}" onclick="cmd('${dev}','${b.action}')">${b.label}</button>`;
+}
+
+function incBtnHTML(b, dev) {
+  return `<button class="btn btn-inc" onclick="cmd('${dev}','adjustProp',['${b.prop}',${b.dir}])">${b.label}</button>`;
+}
+
+function incGroupHTML(incButtons, dev) {
+  if (!incButtons || !incButtons.length) return '';
+  // Group pairs: each 2 consecutive buttons form a pair (up/down or cw/ccw)
+  let html = '';
+  for (let i = 0; i < incButtons.length; i += 2) {
+    const b1 = incButtons[i];
+    const b2 = incButtons[i + 1];
+    html += '<div class="inc-pair">';
+    html += incBtnHTML(b1, dev);
+    if (b2) html += incBtnHTML(b2, dev);
+    html += '</div>';
+  }
+  return html;
+}
+
+function buildCardHTML(dev, prof) {
+  const sliders   = (prof.sliders   || []).map(s => sliderHTML(s, dev)).join('');
+  const bgSliders = (prof.bgSliders || []).map(s => sliderHTML(s, dev)).join('');
+  const buttons   = (prof.buttons   || []).map(b => btnHTML(b, dev)).join('');
+  const bgButtons = (prof.bgButtons || []).map(b => btnHTML(b, dev)).join('');
+  const incBtns   = incGroupHTML(prof.incButtons || [], dev);
+  const hasBg     = bgSliders || bgButtons || prof.bgRgb;
+
+  return `
+  <div class="card-header">
+    <div class="card-name">${dev}</div>
+    <div class="status-dot" id="dot-${dev}">offline</div>
+  </div>
+
+  ${sliders ? `<div class="section-label">Основной свет</div>${sliders}` : ''}
+  ${buttons ? `<div class="btn-group">${buttons}</div>` : ''}
+  ${incBtns ? `<div class="section-label">Управление ±</div><div class="inc-group">${incBtns}</div>` : ''}
+
+  ${hasBg ? `
+    <div class="section-label">Фоновый свет</div>
+    ${bgSliders}
+    ${prof.bgRgb ? `<div class="color-row">
+      <span class="slider-label" style="font-size:.7rem">RGB цвет</span>
+      <div class="color-swatch" id="swatch-${dev}"></div>
+      <span style="font-size:.72rem;color:var(--muted)" id="rgb-${dev}">—</span>
+    </div>` : ''}
+    ${bgButtons ? `<div class="btn-group">${bgButtons}</div>` : ''}
+  ` : ''}
+
+  <div class="divider"></div>
+  <div class="section-label">Состояние</div>
+  <div class="states-grid" id="states-${dev}"></div>`;
+}
+
+// ─── Card creation ────────────────────────────────────────────────────────────
+function mkCard(dev) {
+  if (devCards[dev]) return devCards[dev];
+  devStates[dev] = {};
+  document.getElementById('empty').style.display = 'none';
+
+  const c = document.createElement('div');
+  c.className = 'card';
+  c.innerHTML = buildCardHTML(dev, getProfile(dev));
+  document.getElementById('devices').appendChild(c);
+  devCards[dev] = c;
+  return c;
+}
+
+// ─── State update ─────────────────────────────────────────────────────────────
+function applyState(id, val) {
+  const p = parseId(id);
+  if (!p) return;
+  const { dev, key } = p;
+  if (key.includes('.')) return;
+  if (HIDE_KEYS.has(key)) return;
+
+  mkCard(dev);
+  devStates[dev][key] = val;
+
+  // Connection status dot
+  if (key === '_connected') {
+    const dot  = document.getElementById(`dot-${dev}`);
+    const card = devCards[dev];
+    if (dot)  { dot.className = 'status-dot' + (val ? ' on' : ''); dot.textContent = val ? 'online' : 'offline'; }
+    if (card) card.classList.toggle('connected', !!val);
+  }
+
+  // Slider sync via profile
+  const prof    = getProfile(dev);
+  const allSliders = [...(prof.sliders || []), ...(prof.bgSliders || [])];
+  const slider  = allSliders.find(s => s.id === key);
+  if (slider) setSl(`sl-${key}-${dev}`, `sv-${key}-${dev}`, val, slider.suffix || '');
+
+  // Color swatch
+  if (key === 'bg_rgb' && typeof val === 'number') {
+    const hex = '#' + val.toString(16).padStart(6, '0');
+    const sw  = document.getElementById(`swatch-${dev}`);
+    const lb  = document.getElementById(`rgb-${dev}`);
+    if (sw) sw.style.background = hex;
+    if (lb) lb.textContent = hex;
+  }
+
+  // State grid
+  const grid = document.getElementById(`states-${dev}`);
+  if (!grid) return;
+  let cell = grid.querySelector(`[data-key="${key}"]`);
+  if (!cell) {
+    cell = document.createElement('div');
+    cell.className = 'state-item';
+    cell.setAttribute('data-key', key);
+    const after = [...grid.querySelectorAll('[data-key]')].find(c => c.getAttribute('data-key') > key);
+    after ? grid.insertBefore(cell, after) : grid.appendChild(cell);
+  }
+
+  const isBool = typeof val === 'boolean';
+  const isNum  = typeof val === 'number' && !isBool;
+  const cls    = isBool ? (val ? 'is-true' : 'is-false') : isNum ? 'is-num' : '';
+
+  // Truncate long strings with a hover tooltip
+  let display;
+  if (isBool)                              display = val ? '✔ on' : '✗ off';
+  else if (typeof val === 'string' && val.length > 24) display = val.slice(0, 22) + '…';
+  else                                     display = val ?? '—';
+
+  const title = (typeof val === 'string' && val.length > 24) ? ` title="${val.replace(/"/g, '&quot;')}"` : '';
+  cell.innerHTML = `<div class="state-key">${key}</div><div class="state-val ${cls}"${title}>${display}</div>`;
+}
+
+function setSl(sid, vid, val, suffix) {
+  const s = document.getElementById(sid);
+  const v = document.getElementById(vid);
+  if (s && val != null) s.value = val;
+  if (v && val != null) v.textContent = val + suffix;
+}
+
+// ─── Commands ─────────────────────────────────────────────────────────────────
+async function cmd(device, action, params = []) {
+  await fetch('/cmd', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device, action, params }),
+  });
+}
+
+async function slide(device, method, val) {
+  await cmd(device, 'sendYeelight', [method, [val, 'smooth', 300]]);
+}
+
+// ─── SSE ─────────────────────────────────────────────────────────────────────
+const es = new EventSource('/events');
+es.onmessage = e => {
+  const data = JSON.parse(e.data);
+  if (data.type === 'init') {
+    profiles = data.profiles || {};   // apply profiles before rendering cards
+    Object.entries(data.states).forEach(([id, s]) => applyState(id, s.val));
+  } else if (data.type === 'state') {
+    applyState(data.id, data.val);
+  }
+};
+es.onerror = () => console.warn('[SSE] retrying…');
+</script>
+</body>
+</html>

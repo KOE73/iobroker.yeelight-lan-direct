@@ -1,0 +1,713 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="../../lib/css/materialize.css">
+    <link rel="stylesheet" type="text/css" href="../../css/adapter.css">
+    <script type="text/javascript" src="../../lib/js/jquery-3.2.1.min.js"></script>
+    <script type="text/javascript" src="../../socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="../../js/adapter-settings.js"></script>
+    <script type="text/javascript" src="../../lib/js/materialize.js"></script>
+    <script type="text/javascript" src="words.js"></script>
+    <style>
+        :root {
+            --yl-accent: #f5a623;
+            --yl-accent-dark: #a05e00;
+            --yl-ink: #263238;
+            --yl-muted: #607d8b;
+            --yl-border: #dce5ea;
+            --yl-panel: #fff;
+            --yl-bg: #f3f6f8;
+            --yl-soft: #f8fafb;
+        }
+
+        body { background: var(--yl-bg); }
+
+        .m.adapter-container {
+            max-width: 1160px;
+            padding: 10px 16px 88px;
+        }
+
+        .yl-top {
+            align-items: center;
+            background: var(--yl-panel);
+            border: 1px solid var(--yl-border);
+            border-radius: 8px;
+            display: grid;
+            gap: 10px;
+            grid-template-columns: 48px 1fr auto;
+            margin-bottom: 10px;
+            min-height: 58px;
+            padding: 5px 10px;
+        }
+
+        .yl-logo {
+            background: #151a1e;
+            border-radius: 7px;
+            height: 48px;
+            padding: 7px;
+            width: 48px;
+        }
+
+        .yl-kicker {
+            color: var(--yl-accent-dark);
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+            text-transform: uppercase;
+        }
+
+        .yl-title {
+            color: var(--yl-ink);
+            font-size: 20px !important;
+            font-weight: 600;
+            line-height: 1.1;
+            margin: 2px 0 0;
+        }
+
+        .yl-count {
+            color: var(--yl-muted);
+            font-size: 12px;
+            text-align: right;
+        }
+
+        /* ─── Discovery / manual add: two logical halves ─────────────────── */
+        .yl-discovery {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: 1fr 1fr;
+            margin-bottom: 10px;
+        }
+
+        .yl-box {
+            background: var(--yl-panel);
+            border: 1px solid var(--yl-border);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .yl-box-title {
+            align-items: center;
+            color: var(--yl-muted);
+            display: flex;
+            font-size: 11px;
+            font-weight: 700;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .yl-box-title .status { color: var(--yl-accent-dark); font-weight: 600; }
+
+        .yl-form { display: grid; gap: 8px; }
+        .yl-form-row { display: grid; gap: 8px; }
+        .yl-row-2 { grid-template-columns: 1fr 1fr; }
+        .yl-row-ip { grid-template-columns: 1fr auto; }
+        .yl-row-port { grid-template-columns: 96px 1fr; }
+
+        .yl-box .input-field { margin: 0; }
+        .yl-box input, .yl-box select { margin-bottom: 0 !important; }
+
+        .yl-btn {
+            border-radius: 6px;
+            font-weight: 600;
+            letter-spacing: 0;
+            text-transform: none;
+            white-space: nowrap;
+        }
+        .yl-btn-primary { background: var(--yl-accent) !important; color: #1f2528 !important; }
+        .yl-btn-secondary { background: #455a64 !important; }
+
+        /* ─── Device list ────────────────────────────────────────────────── */
+        .yl-list-wrap {
+            background: var(--yl-panel);
+            border: 1px solid var(--yl-border);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .yl-section-title {
+            color: var(--yl-ink);
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .yl-devices {
+            display: grid;
+            gap: 8px;
+        }
+
+        /* Equal height: both columns stretch to the taller of card / remote. */
+        .yl-device-row {
+            display: grid;
+            gap: 8px;
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+            align-items: stretch;
+        }
+
+        .yl-device {
+            background: #fbfcfd;
+            border: 1px solid var(--yl-border);
+            border-radius: 7px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .yl-device-top {
+            align-items: center;
+            display: grid;
+            gap: 8px;
+            grid-template-columns: 28px 1fr auto auto;
+            padding: 8px 9px;
+        }
+
+        .yl-bulb {
+            align-items: center;
+            background: #fff4dd;
+            border-radius: 6px;
+            color: var(--yl-accent-dark);
+            display: flex;
+            height: 28px;
+            justify-content: center;
+            width: 28px;
+        }
+
+        .yl-device-title {
+            color: var(--yl-ink);
+            font-size: 14px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .yl-device-meta {
+            color: var(--yl-muted);
+            font-size: 11px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .yl-device-grid {
+            border-top: 1px solid #e8eef1;
+            display: grid;
+            gap: 8px 10px;
+            grid-template-columns: 1fr 1fr;
+            margin-top: auto;
+            padding: 8px 9px 9px;
+        }
+
+        .yl-field label {
+            color: var(--yl-muted);
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+
+        .yl-field input {
+            border: 1px solid transparent !important;
+            border-bottom-color: #cfd8dc !important;
+            box-shadow: none !important;
+            box-sizing: border-box !important;
+            color: var(--yl-ink);
+            font-size: 13px !important;
+            height: 28px !important;
+            margin: 0 !important;
+            padding: 0 4px !important;
+        }
+        .yl-field input:focus {
+            border: 1px solid #b0bec5 !important;
+            border-radius: 4px !important;
+        }
+
+        .yl-icon-btn {
+            align-items: center;
+            border-radius: 6px;
+            color: #455a64;
+            cursor: pointer;
+            display: inline-flex;
+            height: 30px;
+            justify-content: center;
+            width: 30px;
+        }
+        .yl-icon-btn:hover { background: #edf2f4; }
+
+        .yl-switch label .lever { margin: 0; }
+        .yl-switch label input[type=checkbox]:checked + .lever { background-color: #f7cf87; }
+        .yl-switch label input[type=checkbox]:checked + .lever:after { background-color: var(--yl-accent); }
+
+        /* ─── Per-device remote (capability aware) ───────────────────────── */
+        .yl-remote {
+            background: #fff;
+            border: 1px solid var(--yl-border);
+            border-radius: 7px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 8px;
+        }
+
+        .yl-command-row {
+            display: grid;
+            gap: 5px;
+            grid-template-columns: repeat(var(--cmd-cols, 5), 1fr);
+        }
+
+        .yl-command {
+            align-items: center;
+            background: var(--yl-soft);
+            border: 1px solid var(--yl-border);
+            border-radius: 6px;
+            color: #455a64;
+            cursor: pointer;
+            display: inline-flex;
+            height: 32px;
+            justify-content: center;
+            min-width: 0;
+        }
+        .yl-command:hover { border-color: #b0bec5; }
+        .yl-command i { font-size: 19px; }
+        .yl-command.primary { background: #fff3d8; border-color: #f3c36d; color: var(--yl-accent-dark); }
+        .yl-command.danger:hover { background: #fdecea; border-color: #e6a59a; color: #b23b29; }
+
+        .yl-sliders {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .yl-mini-range {
+            align-items: center;
+            display: grid;
+            gap: 6px;
+            grid-template-columns: 18px 1fr 40px;
+            min-width: 0;
+        }
+        .yl-mini-range i { color: var(--yl-muted); font-size: 17px; }
+        .yl-mini-range input[type=range] { margin: 0; }
+        .yl-range-value { color: var(--yl-muted); font-size: 11px; text-align: right; }
+
+        .yl-empty {
+            align-items: center;
+            color: var(--yl-muted);
+            display: flex;
+            gap: 12px;
+            padding: 18px;
+        }
+        .yl-empty i { color: var(--yl-accent-dark); font-size: 36px; }
+
+        @media (max-width: 960px) {
+            .yl-device-row, .yl-discovery { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="m adapter-container">
+        <section class="yl-top">
+            <img src="yeelight.png" class="yl-logo" alt="Yeelight">
+            <div>
+                <div class="yl-kicker translate">LAN lighting control</div>
+                <h1 class="yl-title translate">Yeelight LAN Direct Settings</h1>
+            </div>
+            <div class="yl-count"><span class="translate">Configured devices</span>: <strong id="device-count">0</strong></div>
+        </section>
+
+        <section class="yl-discovery">
+            <div class="yl-box">
+                <div class="yl-box-title">
+                    <span class="translate">Discovery</span>
+                    <span class="status" id="interface-status"></span>
+                </div>
+                <div class="yl-form">
+                    <div class="yl-form-row yl-row-2">
+                        <div class="input-field">
+                            <select id="discover-mode">
+                                <option value="all" selected>All interfaces</option>
+                                <option value="auto">Auto</option>
+                                <option value="interface">Selected interface</option>
+                                <option value="manual">Manual IP</option>
+                            </select>
+                            <label class="translate">Discovery mode</label>
+                        </div>
+                        <div class="input-field">
+                            <select id="discover-interface"></select>
+                            <label class="translate">Network interface</label>
+                        </div>
+                    </div>
+                    <div class="yl-form-row yl-row-ip">
+                        <div class="input-field">
+                            <input id="discover-target" type="text" placeholder="192.168.1.50">
+                            <label class="active translate" for="discover-target">Manual IP</label>
+                        </div>
+                        <a class="waves-effect waves-light btn yl-btn yl-btn-secondary" id="discover">
+                            <i class="material-icons left">search</i><span class="translate">Discover</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="yl-box">
+                <div class="yl-box-title"><span class="translate">Manual add</span></div>
+                <div class="yl-form">
+                    <div class="yl-form-row yl-row-2">
+                        <div class="input-field">
+                            <input id="manual-name" type="text">
+                            <label class="translate" for="manual-name">Name</label>
+                        </div>
+                        <div class="input-field">
+                            <input id="manual-ip" type="text">
+                            <label class="translate" for="manual-ip">IP Address</label>
+                        </div>
+                    </div>
+                    <div class="yl-form-row yl-row-port">
+                        <div class="input-field">
+                            <input id="manual-port" type="number" value="55443">
+                            <label class="active translate" for="manual-port">Port</label>
+                        </div>
+                        <a class="waves-effect waves-light btn yl-btn yl-btn-primary" id="add-device">
+                            <i class="material-icons left">add</i><span class="translate">Add device</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="yl-list-wrap">
+            <div class="yl-section-title translate">Devices</div>
+            <div id="device-list" class="yl-devices"></div>
+        </section>
+    </div>
+
+    <script>
+        var devices = [];
+        var changeHandler = function () {};
+        var interfaces = [];
+
+        function t(key) {
+            if (typeof systemDictionary !== 'undefined' && systemDictionary[key] && systemDictionary[key][systemLang]) {
+                return systemDictionary[key][systemLang];
+            }
+            return key;
+        }
+
+        function normalizeDevice(device) {
+            device = device || {};
+            return {
+                enabled: device.enabled !== false,
+                id: device.id || '',
+                ip: device.ip || '',
+                port: Number(device.port || 55443),
+                model: device.model || '',
+                name: device.name || '',
+                caps: (device.caps && typeof device.caps === 'object') ? device.caps : null
+            };
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function targetInstance() {
+            return (typeof adapter !== 'undefined' && typeof instance !== 'undefined') ? adapter + '.' + instance : null;
+        }
+
+        // Capability gate: if caps are unknown (manual device) → allow everything,
+        // matching the backend buildTxMap() behaviour for empty caps.
+        function allow(device, flag) {
+            var caps = device.caps;
+            if (!caps || Object.keys(caps).length === 0) return true;
+            return !!caps[flag];
+        }
+
+        function fieldHtml(index, field, label, value, type) {
+            return '<div class="yl-field">' +
+                '<label for="device-' + index + '-' + field + '">' + escapeHtml(label) + '</label>' +
+                '<input id="device-' + index + '-' + field + '" data-index="' + index + '" data-field="' + field + '" type="' + (type || 'text') + '" value="' + escapeHtml(value) + '">' +
+            '</div>';
+        }
+
+        function commandButton(icon, title, state, value, cls) {
+            return '<a class="yl-command ' + (cls || '') + '" data-state="' + state + '" data-value="' + escapeHtml(value) + '" title="' + escapeHtml(title) + '">' +
+                '<i class="material-icons">' + icon + '</i></a>';
+        }
+
+        function rangeRow(icon, title, state, min, max, step, value, suffix) {
+            return '<div class="yl-mini-range" title="' + escapeHtml(title) + '">' +
+                '<i class="material-icons">' + icon + '</i>' +
+                '<input class="remote-range" data-state="' + state + '" data-suffix="' + escapeHtml(suffix) + '" type="range" min="' + min + '" max="' + max + '" step="' + step + '" value="' + value + '">' +
+                '<div class="yl-range-value">' + value + suffix + '</div>' +
+            '</div>';
+        }
+
+        function remoteHtml(index, device) {
+            // Only render controls the lamp actually supports (caps from discovery).
+            var cmds = [];
+            cmds.push(commandButton('power_settings_new', t('On'), 'power', 'true', 'primary'));
+            cmds.push(commandButton('power_off', t('Off'), 'power', 'false', 'danger'));
+            if (allow(device, 'hasToggle')) cmds.push(commandButton('sync', t('Toggle'), 'TOGGLE', 'true'));
+            cmds.push(commandButton('wb_sunny', t('Normal'), 'ON_NORMAL', 'true'));
+            cmds.push(commandButton('brightness_3', t('Night'), 'ON_NIGHT', 'true'));
+            if (allow(device, 'hasCT')) cmds.push(commandButton('device_thermostat', t('CT mode'), 'ON_CT', 'true'));
+            if (allow(device, 'hasHSV')) cmds.push(commandButton('palette', t('Color'), 'ON_HSV', 'true'));
+            if (allow(device, 'hasBG')) cmds.push(commandButton('light_mode', t('Ambient toggle'), 'BG_TOGGLE', 'true'));
+            if (allow(device, 'hasDefault')) cmds.push(commandButton('save', t('Default'), 'SET_DEFAULT', 'true'));
+
+            var cols = Math.min(cmds.length, 5);
+
+            var sliders = [];
+            sliders.push(rangeRow('brightness_6', t('Brightness'), 'bright', 1, 100, 1, 75, '%'));
+            if (allow(device, 'hasCT')) sliders.push(rangeRow('device_thermostat', t('Temperature'), 'ct', 2700, 6500, 50, 4000, 'K'));
+            if (allow(device, 'hasBG')) sliders.push(rangeRow('brightness_5', t('Ambient brightness'), 'bg_bright', 1, 100, 1, 50, '%'));
+
+            return '<div class="yl-remote" data-index="' + index + '">' +
+                '<div class="yl-command-row" style="--cmd-cols:' + cols + '">' + cmds.join('') + '</div>' +
+                '<div class="yl-sliders">' + sliders.join('') + '</div>' +
+            '</div>';
+        }
+
+        function renderDevices() {
+            var $list = $('#device-list');
+            $('#device-count').text(devices.length);
+
+            if (!devices.length) {
+                $list.html('<div class="yl-empty"><i class="material-icons">lightbulb_outline</i><div><strong>' +
+                    escapeHtml(t('No devices configured')) + '</strong><br>' +
+                    escapeHtml(t('Start discovery or add the first lamp manually.')) + '</div></div>');
+                return;
+            }
+
+            $list.html(devices.map(function (raw, index) {
+                var device = normalizeDevice(raw);
+                var displayName = device.name || device.model || device.ip || t('Unnamed device');
+                var meta = [device.ip, device.model, device.id].filter(Boolean).join(' / ');
+                var card = '<article class="yl-device" data-index="' + index + '">' +
+                    '<div class="yl-device-top">' +
+                        '<div class="yl-bulb"><i class="material-icons">wb_incandescent</i></div>' +
+                        '<div style="min-width:0">' +
+                            '<div class="yl-device-title">' + escapeHtml(displayName) + '</div>' +
+                            '<div class="yl-device-meta">' + escapeHtml(meta || t('Manual device')) + '</div>' +
+                        '</div>' +
+                        '<div class="switch yl-switch"><label><input class="device-enabled" data-index="' + index + '" type="checkbox" ' + (device.enabled ? 'checked' : '') + '><span class="lever"></span></label></div>' +
+                        '<a class="yl-icon-btn delete-device" data-index="' + index + '" title="' + escapeHtml(t('Remove device')) + '"><i class="material-icons">delete</i></a>' +
+                    '</div>' +
+                    '<div class="yl-device-grid">' +
+                        fieldHtml(index, 'name', t('Name'), device.name) +
+                        fieldHtml(index, 'ip', t('IP Address'), device.ip) +
+                        fieldHtml(index, 'port', t('Port'), device.port, 'number') +
+                        fieldHtml(index, 'model', t('Model'), device.model) +
+                    '</div>' +
+                '</article>';
+                return '<div class="yl-device-row">' + card + remoteHtml(index, device) + '</div>';
+            }).join(''));
+        }
+
+        function collectDevicesFromDom() {
+            $('#device-list input[data-field]').each(function () {
+                var $input = $(this);
+                var index = Number($input.attr('data-index'));
+                var field = $input.attr('data-field');
+                if (!devices[index]) return;
+                devices[index][field] = field === 'port' ? Number($input.val() || 55443) : $input.val();
+            });
+            $('#device-list .device-enabled').each(function () {
+                var index = Number($(this).attr('data-index'));
+                if (devices[index]) devices[index].enabled = $(this).prop('checked');
+            });
+        }
+
+        function controlDevice(index, state, value) {
+            collectDevicesFromDom();
+            var device = devices[index];
+            var inst = targetInstance();
+            if (!device || !device.ip) {
+                M.toast({ html: t('Set device IP first'), displayLength: 1800 });
+                return;
+            }
+            if (!inst || typeof sendTo !== 'function') {
+                M.toast({ html: t('Control is available inside ioBroker Admin'), displayLength: 2200 });
+                return;
+            }
+            sendTo(inst, 'control', { device: normalizeDevice(device), state: state, value: value }, function (result) {
+                if (result && result.ok) M.toast({ html: t('Command sent'), displayLength: 900 });
+                else M.toast({ html: (result && result.error) || t('Command failed'), displayLength: 2600 });
+            });
+        }
+
+        function addManualDevice() {
+            var ip = $('#manual-ip').val().trim();
+            devices.push(normalizeDevice({
+                enabled: true,
+                name: $('#manual-name').val().trim() || t('New lamp'),
+                ip: ip,
+                port: Number($('#manual-port').val() || 55443)
+            }));
+            $('#manual-name').val('');
+            $('#manual-ip').val('');
+            $('#manual-port').val('55443');
+            renderDevices();
+            changeHandler();
+            if (M.updateTextFields) M.updateTextFields();
+        }
+
+        function addOrUpdateFound(list) {
+            var changed = 0;
+            (list || []).forEach(function (found) {
+                if (!found || (!found.id && !found.ip)) return;
+                var existing = devices.find(function (item) {
+                    return (found.id && item.id === found.id) || (found.ip && item.ip === found.ip);
+                });
+                if (existing) {
+                    existing.ip = found.ip || existing.ip;
+                    existing.id = found.id || existing.id;
+                    existing.model = found.model || existing.model;
+                    existing.name = found.name || existing.name;
+                    existing.port = Number(found.port || existing.port || 55443);
+                    if (found.caps && typeof found.caps === 'object') existing.caps = found.caps;
+                    changed++;
+                    return;
+                }
+                devices.push(normalizeDevice({
+                    enabled: true,
+                    id: found.id,
+                    name: found.name || 'Yeelight',
+                    ip: found.ip,
+                    model: found.model || 'unknown',
+                    port: found.port || 55443,
+                    caps: found.caps || null
+                }));
+                changed++;
+            });
+            if (changed) {
+                renderDevices();
+                changeHandler();
+            }
+            return changed;
+        }
+
+        function loadInterfaces() {
+            var inst = targetInstance();
+            if (!inst || typeof sendTo !== 'function') {
+                fillInterfaces([]);
+                return;
+            }
+            sendTo(inst, 'listInterfaces', null, function (list) {
+                fillInterfaces(Array.isArray(list) ? list : []);
+            });
+        }
+
+        function fillInterfaces(list) {
+            interfaces = list;
+            var html = '<option value="">' + escapeHtml(t('Automatic')) + '</option>' +
+                interfaces.map(function (item) {
+                    return '<option value="' + escapeHtml(item.address) + '">' + escapeHtml(item.label || item.address) + '</option>';
+                }).join('');
+            $('#discover-interface').html(html);
+            $('#interface-status').text(interfaces.length ? t('Interfaces found:') + ' ' + interfaces.length : t('No interface list'));
+            if (M.FormSelect) M.FormSelect.init(document.querySelectorAll('select'));
+        }
+
+        function bindEvents() {
+            $('#add-device').off('click').on('click', addManualDevice);
+
+            $('#device-list')
+                .off('input change', 'input[data-field]')
+                .on('input change', 'input[data-field]', function (event) {
+                    var $input = $(this);
+                    var index = Number($input.attr('data-index'));
+                    var field = $input.attr('data-field');
+                    if (!devices[index]) return;
+                    devices[index][field] = field === 'port' ? Number($input.val() || 55443) : $input.val();
+                    changeHandler();
+                })
+                .off('change', '.device-enabled')
+                .on('change', '.device-enabled', function () {
+                    var index = Number($(this).attr('data-index'));
+                    if (devices[index]) devices[index].enabled = $(this).prop('checked');
+                    changeHandler();
+                })
+                .off('click', '.delete-device')
+                .on('click', '.delete-device', function () {
+                    devices.splice(Number($(this).attr('data-index')), 1);
+                    renderDevices();
+                    changeHandler();
+                })
+                .off('click', '.yl-command')
+                .on('click', '.yl-command', function () {
+                    var raw = $(this).attr('data-value');
+                    controlDevice(Number($(this).closest('.yl-remote').attr('data-index')), $(this).attr('data-state'), raw === 'true' ? true : raw === 'false' ? false : raw);
+                })
+                .off('change', '.remote-range')
+                .on('change', '.remote-range', function () {
+                    controlDevice(Number($(this).closest('.yl-remote').attr('data-index')), $(this).attr('data-state'), Number($(this).val()));
+                })
+                .off('input', '.remote-range')
+                .on('input', '.remote-range', function () {
+                    $(this).closest('.yl-mini-range').find('.yl-range-value').text($(this).val() + ($(this).attr('data-suffix') || ''));
+                });
+
+            $('#discover').off('click').on('click', function () {
+                var btn = $(this);
+                var inst = targetInstance();
+                if (!inst || typeof sendTo !== 'function') {
+                    M.toast({ html: t('Control is available inside ioBroker Admin'), displayLength: 2200 });
+                    return;
+                }
+                var originalHtml = btn.html();
+                var payload = {
+                    mode: $('#discover-mode').val() || 'all',
+                    interfaceAddress: $('#discover-interface').val() || '',
+                    targetAddress: $('#discover-target').val() || '',
+                    timeoutMs: 4000
+                };
+                btn.addClass('disabled').html('<i class="material-icons left">autorenew</i><span>' + escapeHtml(t('Discovering...')) + '</span>');
+                sendTo(inst, 'discover', payload, function (list) {
+                    btn.removeClass('disabled').html(originalHtml);
+                    var changed = addOrUpdateFound(list);
+                    M.toast({ html: changed ? t('Found devices:') + changed : t('No new devices found'), displayLength: 3000 });
+                });
+            });
+        }
+
+        function load(settings, onChange) {
+            changeHandler = onChange || function () {};
+            devices = ((settings && settings.devices) || []).map(normalizeDevice);
+            renderDevices();
+            bindEvents();
+            loadInterfaces();
+            if (M.FormSelect) M.FormSelect.init(document.querySelectorAll('select'));
+            if (M.updateTextFields) M.updateTextFields();
+            changeHandler(false);
+        }
+
+        function save(callback) {
+            collectDevicesFromDom();
+            var out = devices.map(normalizeDevice);
+            try { console.log('[yeelight save] devices=', JSON.stringify(out)); } catch (e) {}
+            if (typeof M !== 'undefined' && M.toast) {
+                M.toast({ html: 'save(): ' + out.length + ' devices', displayLength: 4000 });
+            }
+            callback({ devices: out });
+        }
+
+        if (typeof window !== 'undefined') {
+            window.load = load;
+            window.save = save;
+        }
+    </script>
+</body>
+
+</html>

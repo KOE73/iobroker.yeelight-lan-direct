@@ -1,0 +1,91 @@
+{
+  "common": {
+    "name": "yeelight-lan-direct",
+    "version": "0.3.0",
+    "news": {
+      "0.3.0": {
+        "en": "Standard ioBroker integration: JSON-Config admin (reliable save), native onStateChange command routing, stable id-based object ids, info.connection indicator, adapter-injected core (no global shims)",
+        "ru": "Стандартная интеграция ioBroker: админка на JSON-Config (надёжное сохранение), маршрутизация команд через onStateChange, стабильные id-объекты, индикатор info.connection, ядро через adapter без глобальных шимов"
+      },
+      "0.2.0": {
+        "en": "Redesigned admin UI (split discovery/manual add, capability-aware per-device remote), persisted device caps, fixed command queue draining on connect and object-form state subscriptions",
+        "ru": "Переработан интерфейс настроек (раздельные поиск/ручное добавление, пульт по возможностям лампы), caps устройства сохраняются, исправлены дренаж очереди команд при подключении и подписки на состояния"
+      },
+      "0.1.3": {
+        "en": "Enabled messagebox in io-package.json for sendTo support",
+        "ru": "Включен messagebox: true для поддержки sendTo из настроек"
+      },
+      "0.1.2": {
+        "en": "Fixed Discovery trigger in Admin UI and improved internal logging",
+        "ru": "Поправлен запуск Discovery из админки и улучшено ведение логов"
+      },
+      "0.1.1": {
+        "en": "Fixed logging and sendTo namespace in ioBroker environment",
+        "ru": "Починил логирование и вызов sendTo namespace внутри ioBroker"
+      },
+      "0.1.0": {
+        "en": "Initial release of Yeelight LAN Direct",
+        "ru": "Первый выпуск Yeelight LAN Direct"
+      }
+    },
+    "titleLang": {
+      "en": "Yeelight LAN Direct",
+      "ru": "Yeelight LAN Direct"
+    },
+    "desc": {
+      "en": "Advanced direct TCP control for Yeelight/Mi devices with incremental steps",
+      "ru": "Прямое TCP управление для Yeelight/Mi с инкрементальными шагами"
+    },
+    "authors": [
+      "User"
+    ],
+    "keywords": [
+      "yeelight",
+      "smart light",
+      "iot"
+    ],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "main": "main.js",
+    "icon": "yeelight.png",
+    "type": "lighting",
+    "mode": "daemon",
+    "messagebox": true,
+    "adminUI": {
+      "config": "json"
+    },
+    "compact": true,
+    "preserveSettings": ["devices"],
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.0"
+      }
+    ]
+  },
+  "native": {
+    "devices": []
+  },
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": {
+        "name": "Information"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "role": "indicator.connected",
+        "name": "Device connection status",
+        "type": "boolean",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    }
+  ]
+}

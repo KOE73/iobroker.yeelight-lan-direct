@@ -1,0 +1,28 @@
+{
+  "name": "iobroker.yeelight-lan-direct",
+  "version": "0.3.0",
+  "description": "Professional direct TCP control for Yeelight & Mi lamps",
+  "author": "KOE73",
+  "license": "MIT",
+  "main": "main.js",
+  "files": [
+    "admin",
+    "core",
+    "main.js",
+    "io-package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.1.6"
+  },
+  "devDependencies": {
+    "@TYPES/node": "^20.0.0"
+  },
+  "scripts": {
+    "test": "node debug/verify_inc.js",
+    "deploy:lab": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-lab.ps1"
+  }
+}
