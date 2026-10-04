@@ -1,6 +1,6 @@
 {
   "name": "iobroker.yeelight-lan-direct",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Professional direct TCP control for Yeelight & Mi lamps",
   "author": "KOE73",
   "license": "MIT",

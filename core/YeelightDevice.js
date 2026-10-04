@@ -85,6 +85,7 @@ class YeelightDevice {
         // common.write берётся из TX_MAP (см. safeSetState), а не отсюда.
         const PCT = { min: 1, max: 100, unit: '%' };
         const KELVIN = { min: 2700, max: 6500, unit: 'K' };
+        const ADJUST = { type: 'number', role: 'level', min: -100, max: 100, unit: '%' };
         this.PROP_META = {
             _connected: { type: 'boolean', role: 'indicator.connected' },
             _last_error: { type: 'string', role: 'text' },
@@ -113,13 +114,15 @@ class YeelightDevice {
             delayoff: { type: 'number', role: 'level.timer', min: 0, unit: 'min' },
             music_on: { type: 'boolean', role: 'switch' },
             scene: { type: 'string', role: 'text' },
-            adjust_bright: { type: 'number', role: 'state' },
-            adjust_ct: { type: 'number', role: 'state' },
-            adjust_color: { type: 'number', role: 'state' },
-            bg_adjust_bright: { type: 'number', role: 'state' },
-            bg_adjust_ct: { type: 'number', role: 'state' },
-            bg_adjust_color: { type: 'number', role: 'state' },
+            adjust_bright: { ...ADJUST },
+            adjust_ct: { ...ADJUST },
+            adjust_color: { ...ADJUST },
+            bg_adjust_bright: { ...ADJUST },
+            bg_adjust_ct: { ...ADJUST },
+            bg_adjust_color: { ...ADJUST },
         };
+        // Команды-«дельты»: лампа их не сообщает, объекты создаются заранее (initCommandStates).
+        this.COMMAND_STATES = ['adjust_bright', 'adjust_ct', 'adjust_color', 'bg_adjust_bright', 'bg_adjust_ct', 'bg_adjust_color'];
 
         this.TX_MAP = buildTxMap(this, this.caps);
 
@@ -394,6 +397,15 @@ class YeelightDevice {
             const id = `${this.BASE}.${key}`;
             this.ensureState(id, { name: cfg.title, type: 'boolean', role: 'button', read: false, write: true, def: false })
                 .then(() => this.adapter.setState(id, false, true));
+        });
+        this.initCommandStates();
+    }
+
+    /** adjust_* — писать дельту в процентах (-100…100); есть только если лампа умеет. */
+    initCommandStates() {
+        this.COMMAND_STATES.forEach(key => {
+            if (!this.TX_MAP[key]) return;
+            this.ensureState(`${this.BASE}.${key}`, { name: key, ...this.PROP_META[key], write: true });
         });
     }
 

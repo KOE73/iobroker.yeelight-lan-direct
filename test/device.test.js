@@ -149,6 +149,43 @@ test('BRIGHT_UP steps from current value', async () => {
     await sleep(10);
 });
 
+test('BRIGHT_INC/DEC send native set_adjust', async () => {
+    const lamp = await startLamp({ bright: '50' });
+    const a = new MockAdapter(NS);
+    const dev = makeDevice(a, lamp.port);
+    await waitFor(() => a.val(`${BASE}.bright`) === 50, 1000, 'bright');
+
+    await dev.TX_MAP.BRIGHT_INC.jsMethod();
+    await waitFor(() => a.val(`${BASE}.bright`) === 60, 1000, 'bright 60');
+    await dev.TX_MAP.BRIGHT_DEC.jsMethod();
+    await waitFor(() => a.val(`${BASE}.bright`) === 50, 1000, 'bright 50');
+
+    const adj = lamp.received.filter(c => c.method === 'set_adjust').map(c => c.params);
+    assert.deepEqual(adj, [['increase', 'bright'], ['decrease', 'bright']]);
+    assert.ok(dev.TX_MAP.CT_INC && dev.TX_MAP.BG_BRIGHT_INC);
+    assert.equal(a.common(`${BASE}.BRIGHT_INC`).role, 'button');
+});
+
+test('adjust_bright object exists and sends a percentage delta', async () => {
+    const lamp = await startLamp({ bright: '50' });
+    const a = new MockAdapter(NS);
+    const dev = makeDevice(a, lamp.port);
+    await waitFor(() => a.val(`${BASE}.bright`) === 50, 1000, 'bright');
+
+    await waitFor(() => a.common(`${BASE}.adjust_bright`), 1000, 'adjust_bright object');
+    assert.deepEqual(
+        pick(a.common(`${BASE}.adjust_bright`), ['type', 'min', 'max', 'unit', 'write']),
+        { type: 'number', min: -100, max: 100, unit: '%', write: true });
+    // ceilc без RGB/HSV — adjust_color не нужен
+    assert.equal(dev.TX_MAP.adjust_color, undefined);
+    await sleep(20);
+    assert.equal(a.common(`${BASE}.adjust_color`), undefined);
+
+    const cmd = await dev.TX_MAP.adjust_bright(30);
+    dev.sendYeelight(cmd.method, cmd.params);
+    await waitFor(() => a.val(`${BASE}.bright`) === 80, 1000, 'bright 80');
+});
+
 function pick(obj, keys) {
     return Object.fromEntries(keys.map(k => [k, obj?.[k]]));
 }

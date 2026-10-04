@@ -105,18 +105,33 @@ function buildTxMap(d, caps = {}) {
         };
     }
     if (has('hasAdjust')) {
+        // Родной set_adjust: лампа сама считает шаг от своего текущего значения —
+        // без гонки с устаревшим state в ioBroker при быстрых нажатиях.
+        const adjust = (action, prop) => () => d.sendYeelight('set_adjust', [action, prop]);
+        map.BRIGHT_INC = { title: 'BRIGHT_INC', isButton: true, jsMethod: adjust('increase', 'bright') };
+        map.BRIGHT_DEC = { title: 'BRIGHT_DEC', isButton: true, jsMethod: adjust('decrease', 'bright') };
+        if (has('hasCT')) {
+            map.CT_INC = { title: 'CT_INC', isButton: true, jsMethod: adjust('increase', 'ct') };
+            map.CT_DEC = { title: 'CT_DEC', isButton: true, jsMethod: adjust('decrease', 'ct') };
+        }
+
+        // adjust_*: изменение на заданный процент (-100…100), тоже на стороне лампы.
         map.adjust_bright = val => {
             const v = d.clampInt(val, -100, 100);
             return v ? { method: 'adjust_bright', params: [v, d.YEELIGHT_DURATION_MS] } : null;
         };
-        map.adjust_ct = val => {
-            const v = d.clampInt(val, -100, 100);
-            return v ? { method: 'adjust_ct', params: [v, d.YEELIGHT_DURATION_MS] } : null;
-        };
-        map.adjust_color = val => {
-            const v = d.clampInt(val, -100, 100);
-            return v ? { method: 'adjust_color', params: [v, d.YEELIGHT_DURATION_MS] } : null;
-        };
+        if (has('hasCT')) {
+            map.adjust_ct = val => {
+                const v = d.clampInt(val, -100, 100);
+                return v ? { method: 'adjust_ct', params: [v, d.YEELIGHT_DURATION_MS] } : null;
+            };
+        }
+        if (has('hasRGB') || has('hasHSV')) {
+            map.adjust_color = val => {
+                const v = d.clampInt(val, -100, 100);
+                return v ? { method: 'adjust_color', params: [v, d.YEELIGHT_DURATION_MS] } : null;
+            };
+        }
     }
     if (has('hasMusic')) {
          map.music_on = val => {
@@ -179,6 +194,10 @@ function buildTxMap(d, caps = {}) {
     }
 
     if (has('hasBGAdjust')) {
+        const bgAdjust = (action, prop) => () => d.sendYeelight('bg_set_adjust', [action, prop]);
+        map.BG_BRIGHT_INC = { title: 'BG_BRIGHT_INC', isButton: true, jsMethod: bgAdjust('increase', 'bright') };
+        map.BG_BRIGHT_DEC = { title: 'BG_BRIGHT_DEC', isButton: true, jsMethod: bgAdjust('decrease', 'bright') };
+
         map.bg_adjust_bright = val => {
             const v = d.clampInt(val, -100, 100);
             return v ? { method: 'bg_adjust_bright', params: [v, d.YEELIGHT_DURATION_MS] } : null;

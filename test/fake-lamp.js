@@ -77,6 +77,15 @@ class FakeLamp {
                 return this._change(sock, cmd, { bright: String(cmd.params[0]) });
             case 'set_ct_abx':
                 return this._change(sock, cmd, { ct: String(cmd.params[0]) });
+            case 'set_adjust': {
+                // шаг настоящей лампы неизвестен — фейк берёт 10
+                const [action, prop] = cmd.params;
+                if (prop !== 'bright') return reply({ id: cmd.id, result: ['ok'] });
+                const delta = action === 'increase' ? 10 : action === 'decrease' ? -10 : 0;
+                return this._change(sock, cmd, { bright: String(clamp(Number(this.props.bright) + delta, 1, 100)) });
+            }
+            case 'adjust_bright':
+                return this._change(sock, cmd, { bright: String(clamp(Number(this.props.bright) + cmd.params[0], 1, 100)) });
             default:
                 return reply({ id: cmd.id, result: ['ok'] });
         }
@@ -100,5 +109,6 @@ async function waitFor(predicate, timeoutMs = 2000, what = 'condition') {
 }
 
 const sleep = ms => new Promise(res => setTimeout(res, ms));
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
 module.exports = { FakeLamp, waitFor, sleep };
