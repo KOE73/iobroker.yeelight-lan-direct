@@ -1,4 +1,18 @@
+const net = (typeof require === 'function') ? require('net') : null;
+
 class YeelightNet {
+    /**
+     * @param {string} host
+     * @param {number} port
+     * @param {object} opts
+     *   onLine(line), onStatus(status, msg, changed), log(msg, level),
+     *   interval       — пауза между командами, мс (throttle);
+     *   retryDelay     — первая пауза перед переподключением, мс;
+     *   maxRetryDelay  — потолок паузы (пауза удваивается при каждой неудаче);
+     *   commandTtl     — сколько команда может ждать в очереди, мс. Команды старше
+     *                    отбрасываются, чтобы нажатия во время офлайна не выполнились
+     *                    пачкой после переподключения.
+     */
     constructor(host, port, opts = {}) {
         this.host = host;
         this.port = port;
@@ -11,29 +25,42 @@ class YeelightNet {
         this.buf = '';
         this.stopped = false;
 
+        this.retryDelay = opts.retryDelay ?? 3000;
+        this.maxRetryDelay = opts.maxRetryDelay ?? 60000;
+        this._nextDelay = this.retryDelay;
+        this._retryTimer = null;
+        this._failures = 0;   // неудачных попыток подряд (сбрасывается при connect)
+        this._status = null;  // последний отправленный onStatus: 1 / 0 / null
+
         // Очередь команд
         this.queue = [];
         this.sending = false;
         this.interval = opts.interval || 200; // Пауза между командами
+        this.commandTtl = opts.commandTtl ?? 5000;
     }
 
     connect() {
         if (this.stopped) return;
+        this._clearRetryTimer();
         this.cleanup();
 
         this._log(`[YeelightNet] Connecting to ${this.host}:${this.port}...`);
-        this.socket = new (require('net').Socket)();
-        this.socket.setKeepAlive(true, 10000);
-        this.socket.setNoDelay(true);
+        const socket = new net.Socket();
+        this.socket = socket;
+        let failed = false; // error и close на один обрыв → одно уведомление
+        socket.setKeepAlive(true, 10000);
+        socket.setNoDelay(true);
 
-        this.socket.on('connect', () => {
+        socket.on('connect', () => {
             this._log('[YeelightNet] Connected');
-            this.onStatus(1, 'Connected');
+            this._failures = 0;
+            this._nextDelay = this.retryDelay;
+            this._setStatus(1, 'Connected');
             // Drain anything that was queued while the socket was still connecting.
             this.processQueue();
         });
 
-        this.socket.on('data', data => {
+        socket.on('data', data => {
             this.buf += data.toString('utf8');
             let idx;
             while ((idx = this.buf.indexOf('\r\n')) >= 0) {
@@ -43,17 +70,59 @@ class YeelightNet {
             }
         });
 
-        this.socket.on('error', err => {
-            this._log(`[YeelightNet] Socket error: ${err.message}`, 'warn');
-            this.onStatus(0, err.message);
+        socket.on('error', err => {
+            if (this.socket !== socket) return;
+            failed = true;
+            this._onDown(err.message);
         });
 
-        this.socket.on('close', () => {
-            this.onStatus(0, 'Disconnected');
-            if (!this.stopped) setTimeout(() => this.connect(), 3000);
+        socket.on('close', () => {
+            if (this.socket !== socket) return; // сокет уже заменён или закрыт через cleanup()
+            this.socket = null;
+            if (!failed) this._onDown('Disconnected');
+            this._scheduleReconnect();
         });
 
-        this.socket.connect(this.port, this.host);
+        socket.connect(this.port, this.host);
+    }
+
+    /** Обрыв или неудачная попытка: один warn на серию, дальше — debug. */
+    _onDown(msg) {
+        this._failures++;
+        const level = this._failures === 1 ? 'warn' : 'debug';
+        this._log(`[YeelightNet] ${this.host}:${this.port} ${msg}`, level);
+        this._dropQueue('disconnected');
+        this._setStatus(0, msg);
+    }
+
+    _setStatus(status, msg) {
+        const changed = status !== this._status;
+        this._status = status;
+        this.onStatus(status, msg, changed);
+    }
+
+    _scheduleReconnect() {
+        if (this.stopped || this._retryTimer) return;
+        const delay = this._nextDelay;
+        this._nextDelay = Math.min(this._nextDelay * 2, this.maxRetryDelay);
+        this._log(`[YeelightNet] Reconnect to ${this.host} in ${delay} ms`);
+        this._retryTimer = setTimeout(() => {
+            this._retryTimer = null;
+            this.connect();
+        }, delay);
+    }
+
+    _clearRetryTimer() {
+        if (this._retryTimer) {
+            clearTimeout(this._retryTimer);
+            this._retryTimer = null;
+        }
+    }
+
+    _dropQueue(reason) {
+        if (this.queue.length === 0) return;
+        this._log(`[YeelightNet] Dropped ${this.queue.length} queued command(s): ${reason}`);
+        this.queue = [];
     }
 
     /**
@@ -62,7 +131,7 @@ class YeelightNet {
     send(method, params, id) {
         if (this.stopped) return false;
         const line = JSON.stringify({ id, method, params }) + '\r\n';
-        this.queue.push(line);
+        this.queue.push({ line, ts: Date.now() });
         this._log(`[YeelightNet] Pushed ${line}`);
         this.processQueue();
         return true;
@@ -75,7 +144,11 @@ class YeelightNet {
         while (this.queue.length > 0) {
             if (!this.isReady()) break;
 
-            const line = this.queue.shift();
+            const { line, ts } = this.queue.shift();
+            if (Date.now() - ts > this.commandTtl) {
+                this._log(`[YeelightNet] Dropped stale command ${line}`);
+                continue;
+            }
             this.socket.write(line);
             this._log(`[YeelightNet] Sending ${line}`);
             // Ждем завершения интервала (throttle)
@@ -86,21 +159,25 @@ class YeelightNet {
     }
 
     isReady() {
-        return !this.stopped && this.socket && !this.socket.destroyed;
+        return !this.stopped && !!this.socket && !this.socket.destroyed && !this.socket.connecting;
     }
 
     cleanup() {
         if (this.socket) {
+            const socket = this.socket;
+            this.socket = null; // close старого сокета не должен планировать reconnect
             try {
-                this.socket.destroy();
+                socket.destroy();
             } catch (e) { }
-            this.socket = null;
         }
+        this.buf = '';
     }
 
     destroy() {
         this.stopped = true;
+        this._clearRetryTimer();
         this.cleanup();
+        this.queue = [];
     }
 }
 

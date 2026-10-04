@@ -59,10 +59,15 @@ Empty `caps` = all commands enabled (backward compat with manual config, no disc
 
 **No blocking ops.** `YeelightNet` uses a throttled async queue (150 ms interval).
 
+**Reconnect & logging** (`YeelightNet`): retry delay 3 s, doubling up to 60 s, reset on connect. One `warn` per outage, further failures → `debug`; `onStatus(status, msg, changed)` — `YeelightDevice` logs `info` only when `changed`. Do not log per retry.
+
+**Command queue**: dropped on disconnect, and each command has a TTL (5 s). Presses made while the lamp is offline must never be replayed after reconnect.
+
+**Object metadata**: `PROP_META` (roles, min/max/unit) drives type-detector (Matter/HomeKit/Material). `common.write` comes from `TX_MAP`, not from `PROP_META`. `ensureState` creates or *patches* type/role/write/min/max/unit/states of existing objects once per id and caches it — never overwrite `common.name` (user may rename). Background light stays on generic roles (`switch`, `level.dimmer`) so the detector does not confuse it with the main light.
+
 **JSDoc** on public functions in utility files. Classes use inline comments only.
 
 ### Known style inconsistencies (do not copy)
-- `YeelightNet.js` calls `require('net')` inside `connect()` — move to top on next touch.
 - Duplicate section comment in `YeelightCapabilities.js` lines 7–8 — remove on next touch.
 
 ## Admin UI — JSON-Config
@@ -76,6 +81,12 @@ Settings page uses **JSON-Config** (`admin/jsonConfig.json`, `io-package.json` �
 ## info.connection
 
 `main.reportDeviceConnection(host, bool)` aggregates per-device TCP state → standard `info.connection` indicator. Green when ≥1 lamp connected. Set `false` at `onReady` start and in `onUnload`.
+
+## Tests
+
+`npm test` — `node:test`, no extra deps. `test/fake-lamp.js` is a TCP lamp (get_prop, set_*, toggle, props notifications, stop → ECONNREFUSED, dropClients). `test/mock-adapter.js` is an in-memory adapter. Network changes need a test against the fake lamp.
+
+CLI (`cli/`) uses only `core/YeelightDetect.js` + `parseDiscoveryText` — keep their interfaces stable; check with `node cli/scan.js -t 3000`.
 
 ## Debugging
 

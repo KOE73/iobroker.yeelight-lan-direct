@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "yeelight-lan-direct",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "news": {
+      "0.3.2": {
+        "en": "Reconnect with backoff (3 s doubling to 60 s), one log line per outage instead of every retry; commands pressed while offline are dropped instead of replayed; proper roles/min/max/unit for type-detector (Matter/HomeKit); _connected is boolean and drives the device online icon; object cache; tests with a fake TCP lamp",
+        "ru": "Переподключение с паузой 3 с, удваивающейся до 60 с; одна строка в логе на обрыв вместо каждой попытки; команды, нажатые в офлайне, отбрасываются, а не выполняются пачкой; роли/min/max/unit для type-detector (Matter/HomeKit); _connected стал boolean и управляет значком онлайн; кэш объектов; тесты с фейковой TCP-лампой"
+      },
       "0.3.1": {
         "en": "Built-in remote control tab in Admin: live lamp glow in real color/brightness, capability-gated controls, background-light ring",
         "ru": "Встроенная вкладка-пульт в Admin: живое свечение реальным цветом и яркостью, элементы управления по возможностям лампы, кольцо фоновой подсветки"
@@ -69,7 +73,9 @@
     },
     "materializeTab": true,
     "compact": true,
-    "preserveSettings": ["devices"],
+    "preserveSettings": [
+      "devices"
+    ],
     "dependencies": [
       {
         "js-controller": ">=5.0.0"

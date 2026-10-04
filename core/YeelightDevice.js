@@ -39,9 +39,11 @@ class YeelightDevice {
     /**
      * @param {object} adapter  ioBroker adapter instance (this).
      * @param {object} dev      device config: { id, ip, port, name, model, caps }.
+     * @param {object} [options] { net: overrides for YeelightNet opts (tests) }.
      */
-    constructor(adapter, dev) {
+    constructor(adapter, dev, options = {}) {
         this.adapter = adapter;
+        this._ensured = new Map(); // id -> Promise: объект уже создан/синхронизирован
         this.HOST = dev.ip;
         this.PORT = dev.port || 55443;
         this.NAME = dev.name || dev.model || dev.ip;
@@ -75,22 +77,40 @@ class YeelightDevice {
         this.logInfo(`Model: ${this.model}  ID: ${this.ID}  caps: ${JSON.stringify(this.caps)}`);
 
         this.GET_PROP_KEYS = this._buildGetPropKeys();
-        this.BOOL_PROPS = new Set(['power', 'main_power', 'bg_power']);
+        this.BOOL_PROPS = new Set(['power', 'main_power', 'bg_power', 'music_on', '_connected']);
 
+        // Роли и диапазоны — по ним type-detector (Matter, HomeKit, Material, алиасы)
+        // узнаёт лампу. Фоновая подсветка намеренно на общих ролях (switch/level.dimmer),
+        // чтобы детектор не путал её с основным светом в одном device.
+        // common.write берётся из TX_MAP (см. safeSetState), а не отсюда.
+        const PCT = { min: 1, max: 100, unit: '%' };
+        const KELVIN = { min: 2700, max: 6500, unit: 'K' };
         this.PROP_META = {
-            power: { type: 'boolean', role: 'switch' },
+            _connected: { type: 'boolean', role: 'indicator.connected' },
+            _last_error: { type: 'string', role: 'text' },
+            _last_seen_ts: { type: 'number', role: 'value.time' },
+            _last_props_json: { type: 'string', role: 'json' },
+            _last_other_json: { type: 'string', role: 'json' },
+            power: { type: 'boolean', role: 'switch.light' },
             main_power: { type: 'boolean', role: 'switch' },
             bg_power: { type: 'boolean', role: 'switch' },
-            active_mode: { type: 'number', role: 'state' },
-            bright: { type: 'number', role: 'level.dimmer' },
-            active_bright: { type: 'number', role: 'level.dimmer' },
-            ct: { type: 'number', role: 'level.color.temperature' },
-            bg_bright: { type: 'number', role: 'level.dimmer' },
-            bg_ct: { type: 'number', role: 'level.color.temperature' },
+            active_mode: { type: 'number', role: 'state', states: { 0: 'normal', 1: 'night' } },
+            bright: { type: 'number', role: 'level.dimmer', ...PCT },
+            active_bright: { type: 'number', role: 'value', ...PCT },
+            ct: { type: 'number', role: 'level.color.temperature', ...KELVIN },
+            hue: { type: 'number', role: 'level.color.hue', min: 0, max: 359, unit: '°' },
+            sat: { type: 'number', role: 'level.color.saturation', min: 0, max: 100, unit: '%' },
+            bg_bright: { type: 'number', role: 'level.dimmer', ...PCT },
+            bg_ct: { type: 'number', role: 'level.color.temperature', ...KELVIN },
+            bg_hue: { type: 'number', role: 'level.color.hue', min: 0, max: 359, unit: '°' },
+            bg_sat: { type: 'number', role: 'level.color.saturation', min: 0, max: 100, unit: '%' },
+            bg_r: { type: 'number', role: 'level.color.red', min: 0, max: 255 },
+            bg_g: { type: 'number', role: 'level.color.green', min: 0, max: 255 },
+            bg_b: { type: 'number', role: 'level.color.blue', min: 0, max: 255 },
             bg_lmode: { type: 'number', role: 'state' },
-            nl_br: { type: 'number', role: 'level.dimmer' },
+            nl_br: { type: 'number', role: 'value', min: 0, max: 100, unit: '%' },
             name: { type: 'string', role: 'info.name' },
-            delayoff: { type: 'number', role: 'level.timer' },
+            delayoff: { type: 'number', role: 'level.timer', min: 0, unit: 'min' },
             music_on: { type: 'boolean', role: 'switch' },
             scene: { type: 'string', role: 'text' },
             adjust_bright: { type: 'number', role: 'state' },
@@ -106,8 +126,9 @@ class YeelightDevice {
         this.logInfo('Init net');
         this.yNet = new YeelightNet(this.HOST, this.PORT, {
             onLine: line => this.handleLine(line),
-            onStatus: (status, msg) => this.onNetStatus(status, msg),
+            onStatus: (status, msg, changed) => this.onNetStatus(status, msg, changed),
             interval: 150,
+            ...(options.net || {}),
             // Low-level protocol chatter goes to debug; only warn/error surface higher.
             log: (msg, level) => {
                 if (level === 'error') this.adapter.log.error(msg);
@@ -141,17 +162,25 @@ class YeelightDevice {
     // -------------------------------------------------------------------------
 
     init() {
+        this.initDeviceObject().catch(e => this.logError(`device object init failed: ${e.message}`));
+        this.ensureState(`${this.BASE}._connected`, { name: 'connected', ...this.PROP_META._connected, write: false });
+        this.ensureState(`${this.BASE}._last_error`, { name: 'last_error', ...this.PROP_META._last_error, write: false });
+        this.initButtons();
+        this.yNet.connect();
+    }
+
+    async initDeviceObject() {
         // Named device node with a stable id; display name comes from common.name.
-        this.adapter.setObjectNotExists(this.BASE, {
+        await this.adapter.setObjectNotExistsAsync(this.BASE, {
             type: 'device',
             common: { name: this.NAME },
             native: { ip: this.HOST, id: this.ID, model: this.model },
         });
-
-        this.ensureState(`${this.BASE}._connected`, { name: 'connected', type: 'number', role: 'indicator.connected', write: false });
-        this.ensureState(`${this.BASE}._last_error`, { name: 'last_error', type: 'string', role: 'text', write: false });
-        this.initButtons();
-        this.yNet.connect();
+        // Онлайн/офлайн-значок устройства в Admin (как у zigbee2mqtt). extend, а не set:
+        // имя устройства пользователь мог переименовать.
+        await this.adapter.extendObjectAsync(this.BASE, {
+            common: { statusStates: { onlineId: `${this.BASE}._connected` } },
+        });
     }
 
     destroy() {
@@ -162,9 +191,11 @@ class YeelightDevice {
     // Сеть
     // -------------------------------------------------------------------------
 
-    onNetStatus(status, msg) {
-        this.logInfo(`onNetStatus status=${status} msg=${msg}`);
-        this.safeSetState('_connected', status);
+    onNetStatus(status, msg, changed = true) {
+        // В info — только переходы online/offline; повторные неудачи — в debug.
+        if (changed) this.logInfo(status === 1 ? 'Connected' : `Disconnected: ${msg}`);
+        else this.logDebug(`onNetStatus status=${status} msg=${msg}`);
+        this.safeSetState('_connected', status === 1);
         this.adapter.reportDeviceConnection(this.HOST, status === 1);
         if (status === 1) {
             this.syncYeelightProps();
@@ -253,19 +284,45 @@ class YeelightDevice {
     // ioBroker state helpers (через adapter)
     // -------------------------------------------------------------------------
 
+    /**
+     * Создаёт state-объект или приводит type/role/read/write/min/max/unit/states
+     * существующего к нужным (у объектов от старых версий они могли отличаться).
+     * Один раз на id за время жизни экземпляра — дальше из кэша.
+     */
     ensureState(id, common) {
-        return this.adapter.setObjectNotExistsAsync(id, {
-            type: 'state',
-            common: {
-                name: common.name ?? id,
-                type: common.type ?? 'mixed',
-                role: common.role ?? 'state',
-                read: common.read !== false,
-                write: common.write !== false,
-                def: common.def ?? null,
-            },
-            native: {},
-        });
+        let p = this._ensured.get(id);
+        if (!p) {
+            p = this._syncStateObject(id, common);
+            this._ensured.set(id, p);
+            p.catch(() => this._ensured.delete(id));
+        }
+        return p;
+    }
+
+    async _syncStateObject(id, common) {
+        const desired = {
+            name: common.name ?? id,
+            type: common.type ?? 'mixed',
+            role: common.role ?? 'state',
+            read: common.read !== false,
+            write: common.write !== false,
+            def: common.def ?? null,
+        };
+        for (const k of ['min', 'max', 'unit', 'states']) {
+            if (common[k] !== undefined) desired[k] = common[k];
+        }
+
+        const obj = await this.adapter.getObjectAsync(id);
+        if (!obj) {
+            await this.adapter.setObjectNotExistsAsync(id, { type: 'state', common: desired, native: {} });
+            return;
+        }
+        const patch = {};
+        for (const k of ['type', 'role', 'read', 'write', 'min', 'max', 'unit', 'states']) {
+            if (desired[k] === undefined) continue;
+            if (JSON.stringify(obj.common?.[k]) !== JSON.stringify(desired[k])) patch[k] = desired[k];
+        }
+        if (Object.keys(patch).length) await this.adapter.extendObjectAsync(id, { common: patch });
     }
 
     async safeSetState(stateId, value) {
@@ -277,7 +334,8 @@ class YeelightDevice {
         const t = meta.type ?? (typeof v === 'boolean' ? 'boolean' : typeof v === 'number' ? 'number' : 'string');
 
         try {
-            await this.ensureState(id, { name: id, type: t, role: meta.role ?? 'state' });
+            // write=true только у того, что реально принимает команды (есть в TX_MAP).
+            await this.ensureState(id, { ...meta, name: id, type: t, role: meta.role ?? 'state', write: !!this.TX_MAP[stateId] });
             await this.adapter.setStateAsync(id, v, true);
         } catch (e) {
             this.logError(`setState failed for ${id}: ${e.message}`);
